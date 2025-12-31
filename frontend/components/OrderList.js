@@ -1,63 +1,49 @@
-import { createSlice, createAsyncThunk, configureStore } from '@reduxjs/toolkit'
+import React, { useEffect } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { fetchOrders, setFilter } from '../state/orderSlice'
 
-// Async thunk to fetch order history
-export const fetchOrders = createAsyncThunk('orders/fetchOrders', async () => {
-  const res = await fetch('http://localhost:9009/api/pizza/history')
-  return res.json()
-})
+export default function OrderList() {
+  const dispatch = useDispatch()
+  const { orders, filter } = useSelector(state => state.orders)
 
-// Async thunk to post a new order
-export const postOrder = createAsyncThunk('orders/postOrder', async (order) => {
-  const res = await fetch('http://localhost:9009/api/pizza/order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(order)
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.message)
-  }
-  return res.json()
-})
+  useEffect(() => {
+    dispatch(fetchOrders())
+  }, [dispatch])
 
-const ordersSlice = createSlice({
-  name: 'orders',
-  initialState: {
-    orders: [],
-    filter: 'All',
-    isLoading: false,
-    error: null
-  },
-  reducers: {
-    setFilter(state, action) {
-      state.filter = action.payload
-    }
-  },
-  extraReducers: builder => {
-    builder
-      .addCase(fetchOrders.pending, state => { state.isLoading = true })
-      .addCase(fetchOrders.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.orders = action.payload
-      })
-      .addCase(fetchOrders.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.error.message
-      })
-      .addCase(postOrder.pending, state => { state.isLoading = true; state.error = null })
-      .addCase(postOrder.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.orders.push(action.payload)
-      })
-      .addCase(postOrder.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.error.message
-      })
-  }
-})
+  const filteredOrders = filter === 'All' 
+    ? orders 
+    : orders.filter(order => order.size === filter)
 
-export const { setFilter } = ordersSlice.actions
-
-export const store = configureStore({
-  reducer: { orders: ordersSlice.reducer }
-})
+  return (
+    <div id="orderList">
+      <h2>Pizza Orders</h2>
+      <ol>
+        {filteredOrders.map(order => {
+          const toppingCount = order.toppings ? order.toppings.length : 0
+          const toppingText = toppingCount === 0 
+            ? 'no toppings'
+            : `${toppingCount} topping${toppingCount > 1 ? 's' : ''}`
+          
+          return (
+            <li key={order.id}>
+              <div>{order.customer} ordered a size {order.size} with {toppingText}</div>
+            </li>
+          )
+        })}
+      </ol>
+      <div id="sizeFilters">
+        Filter by size:
+        {['All', 'S', 'M', 'L'].map(size => (
+          <button
+            key={size}
+            data-testid={`filterBtn${size}`}
+            className={filter === size ? 'active' : ''}
+            onClick={() => dispatch(setFilter(size))}
+          >
+            {size}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}

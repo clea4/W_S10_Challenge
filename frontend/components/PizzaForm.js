@@ -1,33 +1,57 @@
-import React, { useState } from 'react'
+import React, { useReducer } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { postOrder } from '../state/store'
+import { postOrder, fetchOrders } from '../state/orderSlice'
+
+const initialState = {
+  fullName: '',
+  size: '',
+  toppings: []
+}
+
+function formReducer(state, action) {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value }
+    case 'TOGGLE_TOPPING':
+      return {
+        ...state,
+        toppings: state.toppings.includes(action.topping)
+          ? state.toppings.filter(t => t !== action.topping)
+          : [...state.toppings, action.topping]
+      }
+    case 'RESET':
+      return initialState
+    default:
+      return state
+  }
+}
 
 export default function PizzaForm() {
+  const [formState, formDispatch] = useReducer(formReducer, initialState)
   const dispatch = useDispatch()
   const { isLoading, error } = useSelector(state => state.orders)
 
-  const [fullName, setFullName] = useState('')
-  const [size, setSize] = useState('')
-  const [toppings, setToppings] = useState([])
-
-  const toggle = id =>
-    setToppings(t =>
-      t.includes(id) ? t.filter(x => x !== id) : [...t, id]
-    )
-
-  const submit = e => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    dispatch(postOrder({ fullName, size, toppings }))
-    setFullName('')
-    setSize('')
-    setToppings([])
+    const orderData = {
+      fullName: formState.fullName,
+      size: formState.size,
+    }
+    if (formState.toppings.length > 0) {
+      orderData.toppings = formState.toppings.map(t => parseInt(t))
+    }
+    const result = await dispatch(postOrder(orderData))
+    if (postOrder.fulfilled.match(result)) {
+      formDispatch({ type: 'RESET' })
+      await dispatch(fetchOrders())
+    }
   }
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={handleSubmit}>
       <h2>Pizza Form</h2>
-      {isLoading && <div className='pending'>Order in progress...</div>}
-      {error && <div className='failure'>Order failed: {error}</div>}
+      {isLoading && <div className="pending">Order in progress</div>}
+      {error && <div className="failure">{error}</div>}
 
       <div className="input-group">
         <div>
@@ -36,10 +60,10 @@ export default function PizzaForm() {
             data-testid="fullNameInput"
             id="fullName"
             name="fullName"
-            type="text"
             placeholder="Type full name"
-            value={fullName}
-            onChange={e => setFullName(e.target.value)}
+            type="text"
+            value={formState.fullName}
+            onChange={(e) => formDispatch({ type: 'SET_FIELD', field: 'fullName', value: e.target.value })}
           />
         </div>
       </div>
@@ -51,8 +75,8 @@ export default function PizzaForm() {
             data-testid="sizeSelect"
             id="size"
             name="size"
-            value={size}
-            onChange={e => setSize(e.target.value)}
+            value={formState.size}
+            onChange={(e) => formDispatch({ type: 'SET_FIELD', field: 'size', value: e.target.value })}
           >
             <option value="">----Choose size----</option>
             <option value="S">Small</option>
@@ -68,8 +92,8 @@ export default function PizzaForm() {
             data-testid="checkPepperoni"
             name="1"
             type="checkbox"
-            checked={toppings.includes('1')}
-            onChange={() => toggle('1')}
+            checked={formState.toppings.includes('1')}
+            onChange={() => formDispatch({ type: 'TOGGLE_TOPPING', topping: '1' })}
           />
           Pepperoni<br />
         </label>
@@ -78,8 +102,8 @@ export default function PizzaForm() {
             data-testid="checkGreenpeppers"
             name="2"
             type="checkbox"
-            checked={toppings.includes('2')}
-            onChange={() => toggle('2')}
+            checked={formState.toppings.includes('2')}
+            onChange={() => formDispatch({ type: 'TOGGLE_TOPPING', topping: '2' })}
           />
           Green Peppers<br />
         </label>
@@ -88,8 +112,8 @@ export default function PizzaForm() {
             data-testid="checkPineapple"
             name="3"
             type="checkbox"
-            checked={toppings.includes('3')}
-            onChange={() => toggle('3')}
+            checked={formState.toppings.includes('3')}
+            onChange={() => formDispatch({ type: 'TOGGLE_TOPPING', topping: '3' })}
           />
           Pineapple<br />
         </label>
@@ -98,8 +122,8 @@ export default function PizzaForm() {
             data-testid="checkMushrooms"
             name="4"
             type="checkbox"
-            checked={toppings.includes('4')}
-            onChange={() => toggle('4')}
+            checked={formState.toppings.includes('4')}
+            onChange={() => formDispatch({ type: 'TOGGLE_TOPPING', topping: '4' })}
           />
           Mushrooms<br />
         </label>
@@ -108,8 +132,8 @@ export default function PizzaForm() {
             data-testid="checkHam"
             name="5"
             type="checkbox"
-            checked={toppings.includes('5')}
-            onChange={() => toggle('5')}
+            checked={formState.toppings.includes('5')}
+            onChange={() => formDispatch({ type: 'TOGGLE_TOPPING', topping: '5' })}
           />
           Ham<br />
         </label>
@@ -119,4 +143,3 @@ export default function PizzaForm() {
     </form>
   )
 }
-
